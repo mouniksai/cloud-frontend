@@ -308,3 +308,261 @@ const BallotPage = ({ selectedCandidate, setSelectedCandidate, expandedCandidate
     </motion.main>
 );
 
+// Compact Candidate Card
+const CandidateCard = ({ candidate, isSelected, isExpanded, onSelect, onToggleExpand }) => (
+    <motion.div
+        layout
+        className={`bg-slate-800/40 backdrop-blur-md border rounded-xl overflow-hidden transition-all ${
+            isSelected 
+                ? 'border-blue-500 shadow-lg shadow-blue-900/20' 
+                : 'border-slate-700/60 hover:border-slate-600'
+        }`}
+    >
+        <div 
+            className="p-4 cursor-pointer"
+            onClick={onSelect}
+        >
+            <div className="flex items-start gap-4">
+                {/* Compact Symbol */}
+                <div className="w-16 h-16 bg-slate-900/60 rounded-xl flex items-center justify-center text-3xl border border-slate-700/50 shrink-0">
+                    {candidate.symbol}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                            <h3 className="text-lg font-bold text-white truncate">{candidate.name}</h3>
+                            <p className="text-sm text-slate-400 truncate">{candidate.party}</p>
+                        </div>
+                        {isSelected && (
+                            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                                <CheckCircle2 size={14} className="text-white" />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        <span className="text-xs px-2 py-1 bg-slate-900/60 rounded border border-slate-700/50 text-slate-300">
+                            {candidate.age} years
+                        </span>
+                        <span className="text-xs px-2 py-1 bg-slate-900/60 rounded border border-slate-700/50 text-slate-300 truncate">
+                            {candidate.experience}
+                        </span>
+                    </div>
+
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleExpand();
+                        }}
+                        className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
+                    >
+                        {isExpanded ? 'Hide' : 'View'} Manifesto
+                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {/* Compact Manifesto */}
+        <AnimatePresence>
+            {isExpanded && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="border-t border-slate-700/50 bg-slate-900/30 px-4 py-3"
+                >
+                    <div className="grid sm:grid-cols-2 gap-2">
+                        {candidate.keyPoints.map((point, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                                <CheckCircle2 size={12} className="text-blue-400 shrink-0 mt-0.5" />
+                                <span>{point}</span>
+                            </div>
+                        ))}
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    </motion.div>
+);
+
+// Review Page - Compact
+const ReviewPage = ({ candidate, onBack, onConfirm }) => (
+    <motion.main
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 py-8"
+    >
+        <div className="text-center mb-6">
+            <div className="w-16 h-16 mx-auto mb-4 bg-orange-600/10 rounded-full flex items-center justify-center border border-orange-500/20">
+                <AlertCircle size={32} className="text-orange-400" />
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Confirm Your Vote</h1>
+            <p className="text-sm text-slate-400">
+                Your vote will be permanently recorded on the blockchain
+            </p>
+        </div>
+
+        {/* Review Card - Compact */}
+        <div className="bg-slate-800/40 backdrop-blur-md border border-slate-700/60 rounded-2xl p-6 mb-6">
+            <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-700/50">
+                <div className="w-20 h-20 bg-slate-900/60 rounded-xl flex items-center justify-center text-5xl border border-slate-700/50">
+                    {candidate.symbol}
+                </div>
+                <div>
+                    <p className="text-xs text-slate-500 mb-1">VOTING FOR</p>
+                    <h2 className="text-2xl font-bold text-white">{candidate.name}</h2>
+                    <p className="text-sm text-slate-400">{candidate.party}</p>
+                </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p className="text-xs text-slate-500 mb-1">Election</p>
+                    <p className="text-white font-medium">{ACTIVE_ELECTION.title}</p>
+                </div>
+                <div>
+                    <p className="text-xs text-slate-500 mb-1">Constituency</p>
+                    <p className="text-white font-medium">{ACTIVE_ELECTION.constituency}</p>
+                </div>
+            </div>
+        </div>
+
+        {/* Security Notice - Compact */}
+        <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl p-4 mb-6">
+            <div className="flex items-start gap-2 text-xs text-slate-300">
+                <Lock size={16} className="text-slate-400 shrink-0 mt-0.5" />
+                <div>
+                    <p className="font-bold text-white mb-1">Blockchain Security</p>
+                    <p className="text-slate-400">Encrypted with Paillier cryptography • Signed with your wallet • Immutable record</p>
+                </div>
+            </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+            <button
+                onClick={onBack}
+                className="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all border border-slate-700"
+            >
+                Back
+            </button>
+            <button
+                onClick={onConfirm}
+                className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+            >
+                Cast Vote
+                <Vote size={20} />
+            </button>
+        </div>
+    </motion.main>
+);
+
+// Casting Page - Compact
+const CastingPage = () => (
+    <motion.main
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="relative z-10 max-w-2xl mx-auto px-4 py-12 text-center min-h-[70vh] flex items-center justify-center"
+    >
+        <div>
+            <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="w-24 h-24 mx-auto mb-6 bg-blue-600/20 rounded-full flex items-center justify-center border-4 border-blue-500"
+            >
+                <Zap size={36} className="text-blue-400" />
+            </motion.div>
+            
+            <h1 className="text-3xl font-bold text-white mb-3">Casting Your Vote...</h1>
+            <p className="text-sm text-slate-400 mb-8">Recording on blockchain</p>
+
+            <div className="space-y-3 max-w-sm mx-auto text-left">
+                <ProcessStep status="complete" text="Encrypting vote" />
+                <ProcessStep status="active" text="Signing transaction" />
+                <ProcessStep status="pending" text="Broadcasting to network" />
+                <ProcessStep status="pending" text="Confirming block" />
+            </div>
+        </div>
+    </motion.main>
+);
+
+// Confirmation Page - Compact
+const ConfirmationPage = ({ transactionHash }) => (
+    <motion.main
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative z-10 max-w-3xl mx-auto px-4 py-8 text-center"
+    >
+        <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", duration: 0.6 }}
+            className="w-24 h-24 mx-auto mb-6 bg-green-500/20 rounded-full flex items-center justify-center border-4 border-green-500"
+        >
+            <CheckCircle2 size={48} className="text-green-400" />
+        </motion.div>
+
+        <h1 className="text-4xl font-bold text-white mb-3">Vote Cast Successfully!</h1>
+        <p className="text-slate-400 mb-8">Your vote has been recorded on the blockchain</p>
+
+        {/* Transaction Receipt - Compact */}
+        <div className="bg-slate-800/40 backdrop-blur-md border border-slate-700/60 rounded-2xl p-6 mb-6 text-left">
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
+                <h3 className="text-lg font-bold text-white">Blockchain Receipt</h3>
+                <span className="text-xs px-3 py-1 bg-green-500/10 rounded-lg border border-green-500/20 text-green-400 font-bold">CONFIRMED</span>
+            </div>
+            
+            <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-slate-400">Transaction Hash</span>
+                    <span className="font-mono text-white">{transactionHash}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-slate-400">Block Number</span>
+                    <span className="font-mono text-white">#8,234,891</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-slate-400">Network</span>
+                    <span className="text-white">Ethereum Mainnet</span>
+                </div>
+            </div>
+        </div>
+
+        {/* Action Buttons - Compact */}
+        <div className="flex flex-col sm:flex-row gap-3">
+            <button className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2">
+                <ExternalLink size={18} />
+                View on Explorer
+            </button>
+            <button className="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-700">
+                <Download size={18} />
+                Download Receipt
+            </button>
+        </div>
+    </motion.main>
+);
+
+// Helper Components
+const StatBadge = ({ label, value }) => (
+    <div className="px-3 py-2 rounded-lg bg-slate-800/40 border border-slate-700/60">
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-sm font-bold text-white">{value}</p>
+    </div>
+);
+
+const ProcessStep = ({ status, text }) => (
+    <div className="flex items-center gap-2">
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+            status === 'complete' ? 'bg-green-500' :
+            status === 'active' ? 'bg-blue-500 animate-pulse' :
+            'bg-slate-700'
+        }`}>
+            {status === 'complete' && <CheckCircle2 size={12} className="text-white" />}
+        </div>
+        <span className={`text-sm ${status === 'pending' ? 'text-slate-500' : 'text-slate-300'}`}>{text}</span>
+    </div>
+);
