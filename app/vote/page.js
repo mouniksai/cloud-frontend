@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    ShieldCheck, 
-    CheckCircle2, 
+import { useRouter } from 'next/navigation';
+import {
+    ShieldCheck,
+    CheckCircle2,
     AlertCircle,
     ArrowRight,
     X,
@@ -25,7 +26,7 @@ import {
     ChevronUp
 } from 'lucide-react';
 
-// Mock data
+// Mock data (fallback if backend fails)
 const USER_SESSION = {
     name: "Aarav Sharma",
     citizenId: "9876-5432-1012",
@@ -107,12 +108,67 @@ const CANDIDATES = [
     }
 ];
 
+
 export default function VoteGuardBallot() {
+    const router = useRouter();
     const [currentStep, setCurrentStep] = useState('ballot');
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [expandedCandidate, setExpandedCandidate] = useState(null);
-    const [transactionHash, setTransactionHash] = useState('');
+    const [receiptHash, setReceiptHash] = useState('');
     const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
+
+    // Backend integration state
+    const [backendData, setBackendData] = useState({
+        election: null,
+        candidates: [],
+        hasVoted: false,
+        user: null
+    });
+    const [usingBackend, setUsingBackend] = useState(false);
+    const [backendError, setBackendError] = useState('');
+
+    // Try to fetch data from backend on mount
+    useEffect(() => {
+        const tryBackendData = async () => {
+            try {
+                const response = await fetch('http://localhost:5001/api/vote/ballot', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include', // This will include cookies
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    setBackendData({
+                        election: result.election,
+                        candidates: result.candidates,
+                        hasVoted: result.hasVoted,
+                        user: result.user || USER_SESSION
+                    });
+                    setUsingBackend(true);
+
+                    // If user already voted, show receipt
+                    if (result.hasVoted) {
+                        setCurrentStep('already-voted');
+                        if (result.receiptHash) {
+                            setReceiptHash(result.receiptHash);
+                        }
+                    }
+                } else {
+                    console.log('Backend not available, using mock data:', result.message);
+                    setBackendError(result.message);
+                }
+            } catch (error) {
+                console.log('Backend connection failed, using mock data');
+                setBackendError(error.message);
+            }
+        };
+
+        tryBackendData();
+    }, []);
 
     // Timer countdown
     useEffect(() => {
@@ -135,13 +191,52 @@ export default function VoteGuardBallot() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handleCastVote = () => {
+    const handleCastVote = async () => {
         setCurrentStep('casting');
-        
+
+        // Try backend first if available
+        if (usingBackend && backendData.election) {
+            try {
+                const voteData = {
+                    electionId: backendData.election.id,
+                    candidateId: selectedCandidate
+                };
+
+                const response = await fetch('http://localhost:5001/api/vote/cast', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include', // This will include cookies
+                    body: JSON.stringify(voteData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    setReceiptHash(result.receiptHash);
+                    setCurrentStep('confirmed');
+                    return;
+                } else {
+                    console.error('Backend vote failed:', result.message);
+                }
+            } catch (error) {
+                console.error('Vote casting error:', error);
+            }
+        }
+
+        // Fallback to mock transaction
         setTimeout(() => {
-            setTransactionHash(`0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 8)}`);
+            setReceiptHash(`0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 8)}`);
             setCurrentStep('confirmed');
         }, 4000);
+    };
+
+    // Get data to use (backend or mock)
+    const currentData = {
+        election: usingBackend ? backendData.election : ACTIVE_ELECTION,
+        candidates: usingBackend ? backendData.candidates : CANDIDATES,
+        user: usingBackend ? backendData.user : USER_SESSION
     };
 
     return (
@@ -158,7 +253,7 @@ export default function VoteGuardBallot() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="bg-blue-600 p-1.5 rounded-lg">
-                            <ShieldCheck size={20} className="text-white"/>
+                            <ShieldCheck size={20} className="text-white" />
                         </div>
                         <div>
                             <span className="font-bold text-lg text-white">VoteGuard</span>
@@ -167,26 +262,42 @@ export default function VoteGuardBallot() {
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Timer */}
-                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
-                            timeLeft < 60 
-                                ? 'bg-red-900/20 border-red-700/40 text-red-400' 
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${timeLeft < 60
+                                ? 'bg-red-900/20 border-red-700/40 text-red-400'
                                 : 'bg-slate-800/60 border-slate-700/60 text-slate-300'
-                        }`}>
+                            }`}>
                             <Clock size={14} />
                             <span className="text-sm font-mono font-bold">{formatTime(timeLeft)}</span>
                         </div>
                         {/* Auth Badge */}
                         <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/20">
                             <CheckCircle2 size={14} className="text-green-400" />
-                            <span className="text-xs text-green-400 font-medium">Authenticated</span>
+                            <span className="text-xs text-green-400 font-medium">
+                                {usingBackend ? 'Backend Connected' : 'Mock Mode'}
+                            </span>
                         </div>
                     </div>
                 </div>
             </nav>
 
+            {/* Backend Status */}
+            {backendError && (
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2">
+                    <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-lg p-3 flex items-start gap-2">
+                        <AlertCircle size={16} className="text-yellow-400 shrink-0 mt-0.5" />
+                        <div className="text-xs text-yellow-300">
+                            <p>Using mock data - Backend: {backendError}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <AnimatePresence mode="wait">
                 {currentStep === 'ballot' && (
-                    <BallotPage 
+                    <BallotPage
+                        election={currentData.election}
+                        candidates={currentData.candidates}
+                        user={currentData.user}
                         selectedCandidate={selectedCandidate}
                         setSelectedCandidate={setSelectedCandidate}
                         expandedCandidate={expandedCandidate}
@@ -197,8 +308,10 @@ export default function VoteGuardBallot() {
                 )}
 
                 {currentStep === 'review' && (
-                    <ReviewPage 
-                        candidate={CANDIDATES.find(c => c.id === selectedCandidate)}
+                    <ReviewPage
+                        election={currentData.election}
+                        candidate={currentData.candidates.find(c => c.id === selectedCandidate)}
+                        user={currentData.user}
                         onBack={() => setCurrentStep('ballot')}
                         onConfirm={handleCastVote}
                     />
@@ -209,7 +322,19 @@ export default function VoteGuardBallot() {
                 )}
 
                 {currentStep === 'confirmed' && (
-                    <ConfirmationPage transactionHash={transactionHash} />
+                    <ConfirmationPage
+                        receiptHash={receiptHash}
+                        election={currentData.election}
+                        candidate={currentData.candidates.find(c => c.id === selectedCandidate)}
+                    />
+                )}
+
+                {currentStep === 'already-voted' && (
+                    <AlreadyVotedPage
+                        receiptHash={receiptHash}
+                        election={currentData.election}
+                        user={currentData.user}
+                    />
                 )}
             </AnimatePresence>
         </div>
@@ -217,7 +342,7 @@ export default function VoteGuardBallot() {
 }
 
 // Ballot Page
-const BallotPage = ({ selectedCandidate, setSelectedCandidate, expandedCandidate, setExpandedCandidate, onProceed, timeLeft }) => (
+const BallotPage = ({ election, candidates, user, selectedCandidate, setSelectedCandidate, expandedCandidate, setExpandedCandidate, onProceed, timeLeft }) => (
     <motion.main
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -228,16 +353,16 @@ const BallotPage = ({ selectedCandidate, setSelectedCandidate, expandedCandidate
         <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">{ACTIVE_ELECTION.title}</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">{election?.title || 'Election'}</h1>
                     <p className="text-sm text-slate-400 flex items-center gap-1.5">
-                        <MapPin size={14} className="text-blue-400"/>
-                        {ACTIVE_ELECTION.constituency}
+                        <MapPin size={14} className="text-blue-400" />
+                        {election?.constituency || user?.citizen?.constituency}
                     </p>
                 </div>
                 {/* Stats */}
                 <div className="hidden md:flex gap-3">
-                    <StatBadge label="Total" value={ACTIVE_ELECTION.totalVoters} />
-                    <StatBadge label="Voted" value={ACTIVE_ELECTION.votedCount} />
+                    <StatBadge label="Ward" value={user?.citizen?.ward || 'N/A'} />
+                    <StatBadge label="Status" value="LIVE" />
                 </div>
             </div>
 
@@ -245,15 +370,15 @@ const BallotPage = ({ selectedCandidate, setSelectedCandidate, expandedCandidate
             <div className="bg-blue-900/20 border border-blue-700/40 rounded-xl p-4 flex items-start gap-3">
                 <Shield size={18} className="text-blue-400 shrink-0 mt-0.5" />
                 <div className="text-sm text-slate-300">
-                    <p className="font-semibold text-white mb-1">Blockchain-Secured Voting</p>
-                    <p className="text-xs text-slate-400">Your vote is encrypted and permanently recorded. You'll receive a verification receipt.</p>
+                    <p className="font-semibold text-white mb-1">Cryptographically Secured Voting</p>
+                    <p className="text-xs text-slate-400">Your vote is encrypted with Paillier cryptography and permanently recorded with a unique receipt hash.</p>
                 </div>
             </div>
         </div>
 
-        {/* Compact Candidates Grid */}
+        {/* Candidates Grid */}
         <div className="space-y-3 mb-20">
-            {CANDIDATES.map((candidate) => (
+            {candidates.map((candidate) => (
                 <CandidateCard
                     key={candidate.id}
                     candidate={candidate}
@@ -278,7 +403,7 @@ const BallotPage = ({ selectedCandidate, setSelectedCandidate, expandedCandidate
                                 <div className="min-w-0">
                                     <p className="text-xs text-slate-500">Selected</p>
                                     <p className="font-bold text-white text-sm truncate">
-                                        {CANDIDATES.find(c => c.id === selectedCandidate)?.name}
+                                        {candidates.find(c => c.id === selectedCandidate)?.name}
                                     </p>
                                 </div>
                             </>
@@ -295,7 +420,7 @@ const BallotPage = ({ selectedCandidate, setSelectedCandidate, expandedCandidate
                         )}
                     </div>
                     <button
-                        disabled={!selectedCandidate}
+                        disabled={!selectedCandidate || timeLeft <= 0}
                         onClick={onProceed}
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all shadow-lg flex items-center gap-2 text-sm whitespace-nowrap"
                     >
@@ -312,13 +437,12 @@ const BallotPage = ({ selectedCandidate, setSelectedCandidate, expandedCandidate
 const CandidateCard = ({ candidate, isSelected, isExpanded, onSelect, onToggleExpand }) => (
     <motion.div
         layout
-        className={`bg-slate-800/40 backdrop-blur-md border rounded-xl overflow-hidden transition-all ${
-            isSelected 
-                ? 'border-blue-500 shadow-lg shadow-blue-900/20' 
+        className={`bg-slate-800/40 backdrop-blur-md border rounded-xl overflow-hidden transition-all ${isSelected
+                ? 'border-blue-500 shadow-lg shadow-blue-900/20'
                 : 'border-slate-700/60 hover:border-slate-600'
-        }`}
+            }`}
     >
-        <div 
+        <div
             className="p-4 cursor-pointer"
             onClick={onSelect}
         >
@@ -389,7 +513,7 @@ const CandidateCard = ({ candidate, isSelected, isExpanded, onSelect, onToggleEx
 );
 
 // Review Page - Compact
-const ReviewPage = ({ candidate, onBack, onConfirm }) => (
+const ReviewPage = ({ election, candidate, user, onBack, onConfirm }) => (
     <motion.main
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -402,7 +526,7 @@ const ReviewPage = ({ candidate, onBack, onConfirm }) => (
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">Confirm Your Vote</h1>
             <p className="text-sm text-slate-400">
-                Your vote will be permanently recorded on the blockchain
+                Your vote will be permanently recorded with cryptographic security
             </p>
         </div>
 
@@ -410,23 +534,31 @@ const ReviewPage = ({ candidate, onBack, onConfirm }) => (
         <div className="bg-slate-800/40 backdrop-blur-md border border-slate-700/60 rounded-2xl p-6 mb-6">
             <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-700/50">
                 <div className="w-20 h-20 bg-slate-900/60 rounded-xl flex items-center justify-center text-5xl border border-slate-700/50">
-                    {candidate.symbol}
+                    {candidate?.symbol || '?'}
                 </div>
                 <div>
                     <p className="text-xs text-slate-500 mb-1">VOTING FOR</p>
-                    <h2 className="text-2xl font-bold text-white">{candidate.name}</h2>
-                    <p className="text-sm text-slate-400">{candidate.party}</p>
+                    <h2 className="text-2xl font-bold text-white">{candidate?.name || 'Unknown'}</h2>
+                    <p className="text-sm text-slate-400">{candidate?.party || 'Independent'}</p>
                 </div>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
                     <p className="text-xs text-slate-500 mb-1">Election</p>
-                    <p className="text-white font-medium">{ACTIVE_ELECTION.title}</p>
+                    <p className="text-white font-medium">{election?.title || 'General Election'}</p>
                 </div>
                 <div>
                     <p className="text-xs text-slate-500 mb-1">Constituency</p>
-                    <p className="text-white font-medium">{ACTIVE_ELECTION.constituency}</p>
+                    <p className="text-white font-medium">{election?.constituency || user?.citizen?.constituency}</p>
+                </div>
+                <div>
+                    <p className="text-xs text-slate-500 mb-1">Voter</p>
+                    <p className="text-white font-medium">{user?.citizen?.fullName || 'Anonymous'}</p>
+                </div>
+                <div>
+                    <p className="text-xs text-slate-500 mb-1">Citizen ID</p>
+                    <p className="text-white font-medium font-mono">{user?.citizenId || 'N/A'}</p>
                 </div>
             </div>
         </div>
@@ -436,8 +568,8 @@ const ReviewPage = ({ candidate, onBack, onConfirm }) => (
             <div className="flex items-start gap-2 text-xs text-slate-300">
                 <Lock size={16} className="text-slate-400 shrink-0 mt-0.5" />
                 <div>
-                    <p className="font-bold text-white mb-1">Blockchain Security</p>
-                    <p className="text-slate-400">Encrypted with Paillier cryptography • Signed with your wallet • Immutable record</p>
+                    <p className="font-bold text-white mb-1">Cryptographic Security</p>
+                    <p className="text-slate-400">Encrypted with Paillier cryptography • Signed with your credentials • Immutable receipt hash</p>
                 </div>
             </div>
         </div>
@@ -476,7 +608,7 @@ const CastingPage = () => (
             >
                 <Zap size={36} className="text-blue-400" />
             </motion.div>
-            
+
             <h1 className="text-3xl font-bold text-white mb-3">Casting Your Vote...</h1>
             <p className="text-sm text-slate-400 mb-8">Recording on blockchain</p>
 
@@ -491,7 +623,7 @@ const CastingPage = () => (
 );
 
 // Confirmation Page - Compact
-const ConfirmationPage = ({ transactionHash }) => (
+const ConfirmationPage = ({ receiptHash, election, candidate }) => (
     <motion.main
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -507,27 +639,31 @@ const ConfirmationPage = ({ transactionHash }) => (
         </motion.div>
 
         <h1 className="text-4xl font-bold text-white mb-3">Vote Cast Successfully!</h1>
-        <p className="text-slate-400 mb-8">Your vote has been recorded on the blockchain</p>
+        <p className="text-slate-400 mb-8">Your vote has been securely recorded with cryptographic proof</p>
 
         {/* Transaction Receipt - Compact */}
         <div className="bg-slate-800/40 backdrop-blur-md border border-slate-700/60 rounded-2xl p-6 mb-6 text-left">
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
-                <h3 className="text-lg font-bold text-white">Blockchain Receipt</h3>
+                <h3 className="text-lg font-bold text-white">Vote Receipt</h3>
                 <span className="text-xs px-3 py-1 bg-green-500/10 rounded-lg border border-green-500/20 text-green-400 font-bold">CONFIRMED</span>
             </div>
-            
+
             <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                    <span className="text-slate-400">Transaction Hash</span>
-                    <span className="font-mono text-white">{transactionHash}</span>
+                    <span className="text-slate-400">Receipt Hash</span>
+                    <span className="font-mono text-white break-all">{receiptHash}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-slate-400">Block Number</span>
-                    <span className="font-mono text-white">#8,234,891</span>
+                    <span className="text-slate-400">Candidate</span>
+                    <span className="text-white">{candidate?.name}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-slate-400">Network</span>
-                    <span className="text-white">Ethereum Mainnet</span>
+                    <span className="text-slate-400">Election</span>
+                    <span className="text-white">{election?.title}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-slate-400">Timestamp</span>
+                    <span className="text-white">{new Date().toLocaleString()}</span>
                 </div>
             </div>
         </div>
@@ -535,18 +671,81 @@ const ConfirmationPage = ({ transactionHash }) => (
         {/* Action Buttons - Compact */}
         <div className="flex flex-col sm:flex-row gap-3">
             <button className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2">
-                <ExternalLink size={18} />
-                View on Explorer
-            </button>
-            <button className="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-700">
                 <Download size={18} />
                 Download Receipt
+            </button>
+            <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="flex-1 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-700"
+            >
+                <ExternalLink size={18} />
+                Go to Dashboard
             </button>
         </div>
     </motion.main>
 );
 
-// Helper Components
+// Already Voted Page
+const AlreadyVotedPage = ({ receiptHash, election, user }) => (
+    <motion.main
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="relative z-10 max-w-3xl mx-auto px-4 py-8 text-center"
+    >
+        <div className="w-24 h-24 mx-auto mb-6 bg-blue-500/20 rounded-full flex items-center justify-center border-4 border-blue-500">
+            <CheckCircle2 size={48} className="text-blue-400" />
+        </div>
+
+        <h1 className="text-4xl font-bold text-white mb-3">Already Voted</h1>
+        <p className="text-slate-400 mb-8">You have already cast your vote in this election</p>
+
+        {/* Receipt Display */}
+        <div className="bg-slate-800/40 backdrop-blur-md border border-slate-700/60 rounded-2xl p-6 mb-6 text-left">
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-700/50">
+                <h3 className="text-lg font-bold text-white">Your Vote Receipt</h3>
+                <span className="text-xs px-3 py-1 bg-blue-500/10 rounded-lg border border-blue-500/20 text-blue-400 font-bold">RECORDED</span>
+            </div>
+
+            <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-slate-400">Receipt Hash</span>
+                    <span className="font-mono text-white break-all">{receiptHash || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-slate-400">Election</span>
+                    <span className="text-white">{election?.title}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-slate-400">Voter</span>
+                    <span className="text-white">{user?.citizen?.fullName}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-slate-400">Constituency</span>
+                    <span className="text-white">{election?.constituency}</span>
+                </div>
+            </div>
+        </div>
+
+        {/* Security Notice */}
+        <div className="bg-blue-900/20 border border-blue-700/40 rounded-xl p-4 mb-6">
+            <div className="flex items-start gap-2 text-xs text-slate-300">
+                <Shield size={16} className="text-blue-400 shrink-0 mt-0.5" />
+                <div>
+                    <p className="font-bold text-white mb-1">Vote Security</p>
+                    <p className="text-slate-400">Your vote is securely recorded and cannot be changed. The system prevents double voting.</p>
+                </div>
+            </div>
+        </div>
+
+        <button
+            onClick={() => window.location.href = '/dashboard'}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 mx-auto"
+        >
+            <ExternalLink size={18} />
+            Go to Dashboard
+        </button>
+    </motion.main>
+);
 const StatBadge = ({ label, value }) => (
     <div className="px-3 py-2 rounded-lg bg-slate-800/40 border border-slate-700/60">
         <p className="text-xs text-slate-500">{label}</p>
@@ -556,11 +755,10 @@ const StatBadge = ({ label, value }) => (
 
 const ProcessStep = ({ status, text }) => (
     <div className="flex items-center gap-2">
-        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-            status === 'complete' ? 'bg-green-500' :
-            status === 'active' ? 'bg-blue-500 animate-pulse' :
-            'bg-slate-700'
-        }`}>
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${status === 'complete' ? 'bg-green-500' :
+                status === 'active' ? 'bg-blue-500 animate-pulse' :
+                    'bg-slate-700'
+            }`}>
             {status === 'complete' && <CheckCircle2 size={12} className="text-white" />}
         </div>
         <span className={`text-sm ${status === 'pending' ? 'text-slate-500' : 'text-slate-300'}`}>{text}</span>

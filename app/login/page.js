@@ -131,7 +131,7 @@ export default function VoteGuardAuth() {
                             {activeTab === 'signin' ? (
                                 <SignInFlow key="signin" router={router} />
                             ) : (
-                                <RegisterWizard key="register" />
+                                <RegisterWizard key="register" onRegistrationSuccess={() => setActiveTab('signin')} />
                             )}
                         </AnimatePresence>
                     </div>
@@ -183,20 +183,14 @@ const SignInFlow = ({ router }) => {
                 credentials: 'include',
                 body: JSON.stringify({ username, password })
             });
-            // console.log('Login response status:', res);
             const data = await res.json();
 
-
-            // Inside handleCredentialsSubmit in SignInFlow.jsx
             if (res.ok) {
-                // console.log('Login successful:', data);
                 if (data.requires2FA) {
                     // Move to Step 2
-                    // console.log('2FA required for user:', data.userId);
                     setTempUserId(data.userId); // Store ID temporarily
                     setUserDetails({ email: data.maskedEmail, mobile: data.maskedMobile });
                     setStep('2fa');
-                    // console.log('Transitioning to 2FA step');
                 } else {
                     // Fallback (if you ever disable 2FA)
                     setCookie('voteGuardToken', data.token);
@@ -275,7 +269,7 @@ const SignInFlow = ({ router }) => {
     );
 };
 // --- SUB-COMPONENT: REGISTRATION WIZARD (Connected) ---
-const RegisterWizard = () => {
+const RegisterWizard = ({ onRegistrationSuccess }) => {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [citizenId, setCitizenId] = useState('');
@@ -331,13 +325,11 @@ const RegisterWizard = () => {
             const data = await res.json();
 
             if (res.ok) {
-                // Success! Save token and redirect
-                setCookie('voteGuardToken', data.token);
-                if (data.user) {
-                    setCookie('voteGuardUser', JSON.stringify(data.user));
-                }
+                // Success! Don't save token, redirect to login
                 alert("Registration Successful! Please Sign In.");
-                window.location.reload(); // Or switch tab to 'signin'
+                if (onRegistrationSuccess) {
+                    onRegistrationSuccess(); // Switch to sign-in tab
+                }
             } else {
                 alert(data.message);
             }

@@ -2,18 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-    ShieldCheck, 
-    ScanFace, 
-    Fingerprint, 
-    KeyRound, 
-    CheckCircle2, 
+import { useRouter } from 'next/navigation';
+import {
+    ShieldCheck,
+    ScanFace,
+    Fingerprint,
+    KeyRound,
+    CheckCircle2,
     Loader2,
     Lock,
     ArrowRight
 } from 'lucide-react';
 
 export default function VerificationPage() {
+    const router = useRouter();
     // State to track verification progress (0, 1, 2, or 3 completed)
     const [stepsCompleted, setStepsCompleted] = useState(0);
     const [loadingStep, setLoadingStep] = useState(null);
@@ -30,7 +32,7 @@ export default function VerificationPage() {
 
     return (
         <div className="min-h-screen bg-[#0B1121] font-sans text-slate-200 selection:bg-blue-500 selection:text-white pb-12">
-            
+
             {/* --- Ambient Background (Same as Dashboard) --- */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-[120px]" />
@@ -43,7 +45,7 @@ export default function VerificationPage() {
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-900/20">
-                            <ShieldCheck size={24} className="text-white"/>
+                            <ShieldCheck size={24} className="text-white" />
                         </div>
                         <span className="font-bold text-xl text-white tracking-tight">VoteGuard</span>
                     </div>
@@ -56,9 +58,9 @@ export default function VerificationPage() {
 
             {/* --- MAIN CONTENT --- */}
             <main className="relative z-10 max-w-5xl mx-auto px-6 py-16">
-                
+
                 {/* Header Text */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center mb-16"
@@ -72,7 +74,7 @@ export default function VerificationPage() {
                     <div className="hidden md:block absolute top-1/2 left-0 w-full h-1 bg-slate-800/50 -z-10 transform -translate-y-1/2"></div>
 
                     {/* Step 1: Face Verification */}
-                    <VerificationCard 
+                    <VerificationCard
                         stepNumber={1}
                         title="Face Recognition"
                         description="Position face in frame for liveness detection."
@@ -82,8 +84,8 @@ export default function VerificationPage() {
                         isLoading={loadingStep === 1}
                         onVerify={() => handleVerify(1)}
                     >
-                         {/* Camera Simulation Area */}
-                         <div className="w-full h-32 bg-slate-950/50 rounded-xl mb-6 flex items-center justify-center relative border border-slate-800 overflow-hidden group">
+                        {/* Camera Simulation Area */}
+                        <div className="w-full h-32 bg-slate-950/50 rounded-xl mb-6 flex items-center justify-center relative border border-slate-800 overflow-hidden group">
                             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1495745966610-2a672229dd3b?q=80&w=300&auto=format&fit=crop')] bg-cover bg-center opacity-20 grayscale group-hover:opacity-40 transition-opacity"></div>
                             <ScanFace className="text-slate-600/50 text-4xl relative z-10" />
                             {/* Scanning Overlay Animation */}
@@ -94,7 +96,7 @@ export default function VerificationPage() {
                     </VerificationCard>
 
                     {/* Step 2: Biometric Scan */}
-                    <VerificationCard 
+                    <VerificationCard
                         stepNumber={2}
                         title="Biometric Scan"
                         description="Place registered finger on the hardware sensor."
@@ -104,13 +106,13 @@ export default function VerificationPage() {
                         isLoading={loadingStep === 2}
                         onVerify={() => handleVerify(2)}
                     >
-                         <div className="mb-8 mt-6 flex justify-center">
+                        <div className="mb-8 mt-6 flex justify-center">
                             <Fingerprint className={`text-6xl transition-colors duration-500 ${loadingStep === 2 ? 'text-blue-400 animate-pulse' : 'text-slate-700'}`} />
                         </div>
                     </VerificationCard>
 
                     {/* Step 3: Token Validation */}
-                    <VerificationCard 
+                    <VerificationCard
                         stepNumber={3}
                         title="Token Validation"
                         description="Verifying blockchain eligibility credentials."
@@ -120,7 +122,7 @@ export default function VerificationPage() {
                         isLoading={loadingStep === 3}
                         onVerify={() => handleVerify(3)}
                     >
-                         <div className="w-full bg-slate-950/50 rounded-xl p-4 mb-6 border border-slate-800/60 font-mono text-xs text-slate-500">
+                        <div className="w-full bg-slate-950/50 rounded-xl p-4 mb-6 border border-slate-800/60 font-mono text-xs text-slate-500">
                             <div className="flex items-center gap-2 mb-2">
                                 <div className={`w-2 h-2 rounded-full ${stepsCompleted >= 3 ? 'bg-emerald-500' : loadingStep === 3 ? 'bg-blue-500 animate-ping' : 'bg-slate-600'}`}></div>
                                 Status: {stepsCompleted >= 3 ? 'Verified' : loadingStep === 3 ? 'Validating...' : 'Waiting'}
@@ -132,18 +134,19 @@ export default function VerificationPage() {
                 </div>
 
                 {/* Final Action Area */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
                     className="mt-20 text-center"
                 >
-                    <button 
+                    <button
                         disabled={stepsCompleted < 3}
+                        onClick={() => stepsCompleted >= 3 && router.push('/vote')}
                         className={`
                             relative group overflow-hidden px-12 py-5 rounded-2xl font-bold text-lg shadow-xl flex items-center justify-center mx-auto gap-3 transition-all duration-300
-                            ${stepsCompleted < 3 
-                                ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-700' 
+                            ${stepsCompleted < 3
+                                ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-700'
                                 : 'bg-gradient-to-r from-blue-600 to-blue-800 text-white hover:scale-105 hover:shadow-blue-900/50 border border-blue-500/50'}
                         `}
                     >
@@ -171,7 +174,7 @@ export default function VerificationPage() {
 // --- Reusable Verification Card Component ---
 function VerificationCard({ stepNumber, title, description, icon, isActive, isCompleted, isLoading, onVerify, children }) {
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: stepNumber * 0.1 }}
@@ -200,7 +203,7 @@ function VerificationCard({ stepNumber, title, description, icon, isActive, isCo
                 </div>
                 <h3 className="font-bold text-xl text-white mb-3">{title}</h3>
                 <p className="text-sm text-slate-400 mb-8 leading-relaxed">{description}</p>
-                
+
                 {/* Custom Content (Camera, etc.) */}
                 <div className="w-full">
                     {children}
@@ -208,20 +211,20 @@ function VerificationCard({ stepNumber, title, description, icon, isActive, isCo
             </div>
 
             {/* Action Button */}
-            <button 
+            <button
                 onClick={onVerify}
                 disabled={!isActive || isCompleted || isLoading}
                 className={`
                     w-full py-4 rounded-xl font-bold text-sm transition-all mt-auto flex items-center justify-center gap-2
-                    ${isCompleted 
-                        ? 'bg-emerald-600/20 text-emerald-400 cursor-default border border-emerald-500/20' 
-                        : isActive 
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/30 border border-blue-500/50' 
+                    ${isCompleted
+                        ? 'bg-emerald-600/20 text-emerald-400 cursor-default border border-emerald-500/20'
+                        : isActive
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/30 border border-blue-500/50'
                             : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'}
                 `}
             >
                 {isLoading ? (
-                    <><Loader2 className="animate-spin" size={18}/> Verifying...</>
+                    <><Loader2 className="animate-spin" size={18} /> Verifying...</>
                 ) : isCompleted ? (
                     'Verified Successfully'
                 ) : (

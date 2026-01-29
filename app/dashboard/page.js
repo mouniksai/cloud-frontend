@@ -127,7 +127,7 @@ export default function VoteGuardDashboard() {
 
     const handleVoteClick = () => {
         if (dashboardData?.activeElection) {
-            router.push('/vote');
+            router.push('/verify');
         }
     };
 
