@@ -9,27 +9,7 @@ import {
     Smartphone, Mail, Shield
 } from 'lucide-react';
 
-// --- MOCK GOVERNMENT DATABASE (Simulated) ---
-const MOCK_GOVT_DB = {
-    "987654321012": {
-        fullName: "Aarav Sharma",
-        dob: "15 Aug 1998",
-        state: "Maharashtra",
-        gender: "Male",
-        email: "aarav.s@example.com",
-        mobile: "+91 98765 43210",
-        photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces&q=80"
-    },
-    "123456789012": {
-        fullName: "Priya Venkatesh",
-        dob: "22 Mar 2001",
-        state: "Tamil Nadu",
-        gender: "Female",
-        email: "priya.v@example.com",
-        mobile: "+91 91234 56789",
-        photoUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces&q=80"
-    }
-};
+
 
 export default function VoteGuardAuth() {
     const [activeTab, setActiveTab] = useState('signin');
@@ -150,19 +130,54 @@ const FeatureItem = ({ icon: Icon, title, desc }) => (
 );
 
 // --- SUB-COMPONENT: SIGN IN FLOW (Handles Auth + 2FA) ---
+// --- SUB-COMPONENT: SIGN IN FLOW (Connected) ---
 const SignInFlow = ({ router }) => {
     const [step, setStep] = useState('credentials');
     const [loading, setLoading] = useState(false);
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
     const [currentUser, setCurrentUser] = useState(null);
+    const [tempUserId, setTempUserId] = useState(null); // For 2FA
+    const [userDetails, setUserDetails] = useState({ email: '', mobile: '' });
 
-    const handleCredentialsSubmit = (e) => {
+    const handleCredentialsSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setTimeout(() => {
-            setCurrentUser(MOCK_GOVT_DB["987654321012"]);
+        setLoading(true); setError('');
+
+        try {
+            const res = await fetch('http://localhost:5001/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            // console.log('Login response status:', res);
+            const data = await res.json();
+            
+
+            // Inside handleCredentialsSubmit in SignInFlow.jsx
+            if (res.ok) {
+                // console.log('Login successful:', data);
+                if (data.requires2FA) {
+                    // Move to Step 2
+                    // console.log('2FA required for user:', data.userId);
+                    setTempUserId(data.userId); // Store ID temporarily
+                    setUserDetails({ email: data.maskedEmail, mobile: data.maskedMobile });
+                    setStep('2fa');
+                    // console.log('Transitioning to 2FA step');
+                } else {
+                    // Fallback (if you ever disable 2FA)
+                    localStorage.setItem('voteGuardToken', data.token);
+                    router.push('/dashboard');
+                }
+            } else {
+                setError(data.message || "Invalid credentials");
+            }
+        } catch (err) {
+            setError("Login failed. Server unreachable.");
+        } finally {
             setLoading(false);
-            setStep('2fa');
-        }, 1500);
+        }
     };
 
     if (step === 'credentials') {
@@ -174,14 +189,32 @@ const SignInFlow = ({ router }) => {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
             >
-                <div>
+                 <div>
                     <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h2>
                     <p className="text-slate-500">Sign in to access your secure voting portal</p>
                 </div>
 
                 <form onSubmit={handleCredentialsSubmit} className="space-y-5">
-                    <InputField label="Username" icon={User} placeholder="Enter your username" />
-                    <InputField label="Password" icon={Lock} type="password" placeholder="Enter your password" />
+                    
+
+                    
+                    <InputField 
+                        label="Username" 
+                        icon={User} 
+                        placeholder="Enter your username" 
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                    />
+                    <InputField 
+                        label="Password" 
+                        icon={Lock} 
+                        type="password" 
+                        placeholder="Enter your password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
 
                     <div className="flex items-center justify-between">
                         <label className="flex items-center gap-2 cursor-pointer">
@@ -203,32 +236,78 @@ const SignInFlow = ({ router }) => {
     }
 
     return (
-        <TwoFactorAuth user={currentUser} onBack={() => setStep('credentials')} router={router} />
+        <TwoFactorAuth user={currentUser} userId={tempUserId} userDetails={userDetails} onBack={() => setStep('credentials')} router={router} />
     );
 };
-
-// --- SUB-COMPONENT: REGISTRATION WIZARD ---
+// --- SUB-COMPONENT: REGISTRATION WIZARD (Connected) ---
 const RegisterWizard = () => {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [citizenId, setCitizenId] = useState('');
+    const [username, setUsername] = useState('');     // State for username
+    const [password, setPassword] = useState('');     // State for password
     const [error, setError] = useState('');
     const [govtData, setGovtData] = useState(null);
 
-    const handleVerify = () => {
+    // --- STEP 1: VERIFY IDENTITY ---
+    const handleVerify = async () => {
         if (!citizenId) { setError("Please enter a valid ID"); return; }
         setLoading(true); setError('');
 
-        setTimeout(() => {
-            const data = MOCK_GOVT_DB[citizenId];
-            if (data) {
-                setGovtData(data);
+        try {
+            const res = await fetch('http://localhost:5001/api/auth/verify-citizen', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ citizenId })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setGovtData(data); // Real data from Supabase!
                 setStep(2);
             } else {
-                setError("ID not found. Try '123456789012'");
+                setError(data.message || "Verification failed");
             }
+        } catch (err) {
+            setError("Server connection failed. Is backend running?");
+        } finally {
             setLoading(false);
-        }, 1500);
+        }
+    };
+
+    // --- STEP 2: CREATE ACCOUNT ---
+    const handleRegister = async () => {
+        if(!username || !password) { alert("Please fill all fields"); return; }
+        setLoading(true);
+
+        try {
+            const res = await fetch('http://localhost:5001/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    citizenId, 
+                    username, 
+                    password 
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                // Success! Save token and redirect
+                localStorage.setItem('voteGuardToken', data.token);
+                localStorage.setItem('voteGuardUser', JSON.stringify(data.user));
+                alert("Registration Successful! Please Sign In.");
+                window.location.reload(); // Or switch tab to 'signin'
+            } else {
+                alert(data.message);
+            }
+        } catch (err) {
+            alert("Registration failed");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -238,7 +317,6 @@ const RegisterWizard = () => {
             exit={{ opacity: 0, x: -20 }}
             className="space-y-6"
         >
-            {/* Step Indicator */}
             <div className="flex items-center gap-2 mb-4">
                 <div className={`h-1.5 flex-1 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-slate-200'}`} />
                 <div className={`h-1.5 flex-1 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`} />
@@ -257,7 +335,7 @@ const RegisterWizard = () => {
                             We will fetch your details from the secure Government Node. This action is logged for security.
                         </p>
                     </div>
-
+                    
                     <InputField
                         label="Citizen ID"
                         icon={Fingerprint}
@@ -277,36 +355,32 @@ const RegisterWizard = () => {
                 </div>
             ) : (
                 <div className="space-y-6">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Create Account</h2>
-                        <p className="text-slate-500">Identity verified. Set up your access credentials.</p>
-                    </div>
-
-                    {/* Verified Data Card */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg flex items-center gap-1">
-                            <CheckCircle2 size={12} /> VERIFIED
-                        </div>
-                        <div className="flex gap-4 items-center">
-                            <img src={govtData?.photoUrl} alt="User" className="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover" />
-                            <div>
-                                <h3 className="text-slate-900 font-bold">{govtData?.fullName}</h3>
-                                <div className="flex gap-2 text-xs text-slate-500 mt-0.5">
-                                    <span>{govtData?.dob}</span>
-                                    <span>•</span>
-                                    <span>{govtData?.state}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {/* ... (Keep Verified Data Card UI same as before) ... */}
 
                     <div className="space-y-4">
-                        <InputField label="Choose Username" icon={User} placeholder="e.g. voterguy123" />
-                        <InputField label="Set Password" icon={Lock} type="password" placeholder="Min. 8 characters" />
+                        <InputField 
+                            label="Choose Username" 
+                            icon={User} 
+                            placeholder="e.g. voterguy123" 
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                        <InputField 
+                            label="Set Password" 
+                            icon={Lock} 
+                            type="password" 
+                            placeholder="Min. 8 characters" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
                     </div>
 
-                    <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/30 transition-all">
-                        Complete Registration
+                    <button 
+                        onClick={handleRegister}
+                        disabled={loading}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2"
+                    >
+                        {loading ? <Loader2 className="animate-spin" /> : "Complete Registration"}
                     </button>
                 </div>
             )}
@@ -317,7 +391,7 @@ const RegisterWizard = () => {
 // --- SUB-COMPONENT: 2FA INTERFACE ---
 const RESEND_TIME = 30;
 
-const TwoFactorAuth = ({ user, onBack, router }) => {
+const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
     const [step, setStep] = useState("mobile");
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
@@ -363,21 +437,48 @@ const TwoFactorAuth = ({ user, onBack, router }) => {
         handleSendOtp();
     };
 
-    const handleVerify = () => {
+
+    const handleVerify = async () => {
         setLoading(true);
-
-        setTimeout(() => {
-            setLoading(false);
-            setOtp("");
-            setSent(false);
-
-            if (step === "mobile") {
+        
+        // NOTE: For now, we skip mobile step logic and assume we are on email step
+        // Or you can use the same OTP logic for both steps if simulating
+        if (step === "mobile") {
+            // Just simulate mobile step for UI demo (since no SMS API)
+            setTimeout(() => {
+                setLoading(false);
                 setStep("email");
-            } else {
-                // Redirect to dashboard after successful login
+                setOtp("");
+            }, 1000);
+            return;
+        }
+
+        try {
+            // console.log('Verifying OTP for user ID:', userDetails);
+            const res = await fetch('http://localhost:5001/api/auth/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    userId: userId,
+                    otp: otp 
+                })
+            });
+
+            console.log('OTP verification response status:', res);
+            const data = await res.json();
+
+            if (res.ok) {
+                // FINAL SUCCESS
+                localStorage.setItem('voteGuardToken', data.token);
                 router.push('/dashboard');
+            } else {
+                alert(data.message); // Invalid OTP
             }
-        }, 1500);
+        } catch (err) {
+            alert("Verification failed");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
