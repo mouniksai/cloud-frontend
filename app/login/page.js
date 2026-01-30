@@ -566,7 +566,7 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
                     <div>
                         <p className="font-bold">Mobile Verification</p>
                         <p className="text-xs text-slate-500">
-                            {maskMobile(user?.mobile)}
+                            {maskMobile(userDetails?.mobile)}
                         </p>
                     </div>
                     {step !== "mobile" && (
@@ -592,7 +592,7 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
                     <div>
                         <p className="font-bold">Email Verification</p>
                         <p className="text-xs text-slate-500">
-                            {maskEmail(user?.email)}
+                            {maskEmail(userDetails?.email)}
                         </p>
                     </div>
                 </div>
