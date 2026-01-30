@@ -17,7 +17,8 @@ import {
     MapPin,
     AlertCircle,
     CheckCircle2,
-    Loader2
+    Loader2,
+    BarChart3
 } from 'lucide-react';
 
 // Global API Configuration - Change this URL to update backend endpoint everywhere
@@ -202,6 +203,15 @@ export default function VoteGuardDashboard() {
                                 </span>
                             </div>
                         </div>
+
+                        {/* Results Button */}
+                        <button
+                            onClick={() => router.push('/results')}
+                            className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 hover:text-purple-300 text-sm font-medium transition-all border border-purple-500/20 hover:border-purple-500/40"
+                        >
+                            <BarChart3 size={16} />
+                            <span>Results</span>
+                        </button>
 
                         {/* Notification Bell */}
                         <button
