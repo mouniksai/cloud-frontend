@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Webcam from 'react-webcam'; // NEW IMPORT
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
@@ -16,18 +17,129 @@ import {
 
 export default function VerificationPage() {
     const router = useRouter();
-    // State to track verification progress (0, 1, 2, or 3 completed)
+    const webcamRef = useRef(null);
     const [stepsCompleted, setStepsCompleted] = useState(0);
     const [loadingStep, setLoadingStep] = useState(null);
+    const [cameraActive, setCameraActive] = useState(false);
 
-    // Simulate verification process
-    const handleVerify = (stepNumber) => {
-        setLoadingStep(stepNumber);
-        // Simulate API call delay
-        setTimeout(() => {
-            setStepsCompleted(stepNumber);
+    // Debug logging
+    useEffect(() => {
+        console.log('VerificationPage state:', {
+            stepsCompleted,
+            loadingStep,
+            cameraActive
+        });
+    }, [stepsCompleted, loadingStep, cameraActive]);
+
+    // --- STEP 1: FACE VERIFICATION ---
+    const handleFaceVerify = async () => {
+        setLoadingStep(1);
+
+        try {
+            // 1. Capture Image
+            const imageSrc = webcamRef.current?.getScreenshot();
+            if (!imageSrc) {
+                alert("Camera error - please try again");
+                setLoadingStep(null);
+                return;
+            }
+
+            // 2. Send to Backend
+            const res = await fetch('http://localhost:5001/api/verification/face', {
+                method: 'POST',
+
+                // NEW: Send the Secure Cookie automatically
+                credentials: 'include',
+
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    liveImageBase64: imageSrc
+                })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status} error` }));
+                throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+
+            if (data && data.success) {
+                setStepsCompleted(1); // Pass Step 1
+                setCameraActive(false); // Turn off camera
+            } else {
+                alert(data?.message || "Verification Failed. Try again.");
+            }
+
+        } catch (err) {
+            console.error('Face verification error:', err);
+            alert("Server Error - Please try again");
+        } finally {
             setLoadingStep(null);
-        }, 2000);
+        }
+    };
+
+    // --- STEP 2: FINGERPRINT (SKIPPED/MOCKED) ---
+    const handleFingerprint = () => {
+        setLoadingStep(2);
+        setTimeout(() => {
+            setStepsCompleted(2);
+            setLoadingStep(null);
+        }, 1500);
+    };
+
+    // Generic handler for verification steps
+    const handleVerify = (stepNumber) => {
+        console.log('handleVerify called with step:', stepNumber);
+
+        if (stepNumber === 1) {
+            console.log('Starting step 1 - activating camera');
+            setCameraActive(true);
+        } else if (stepNumber === 2) {
+            console.log('Starting step 2 - fingerprint verification');
+            handleFingerprint();
+        } else if (stepNumber === 3) {
+            console.log('Starting step 3 - token validation');
+            handleTokenVerify();
+        }
+    };
+
+    // --- STEP 3: TOKEN VALIDATION ---
+    // --- STEP 3: TOKEN VALIDATION ---
+    const handleTokenVerify = async () => {
+        setLoadingStep(3);
+
+        try {
+            // We use credentials: 'include' so the browser sends the cookie automatically
+            const res = await fetch('http://localhost:5001/api/verification/token', {
+                method: 'POST',
+                credentials: 'include', // <--- IMPORTANT: Sends the HTTP-Only Cookie
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status} error` }));
+                throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+
+            if (data && data.success) {
+                setStepsCompleted(3); // Success!
+            } else {
+                alert(data?.message || "Token Validation Failed. Please Login Again.");
+            }
+
+        } catch (e) {
+            console.error("Token Error", e);
+            alert("Server Connection Error - Please try again");
+        } finally {
+            setLoadingStep(null);
+        }
     };
 
     return (
@@ -77,20 +189,61 @@ export default function VerificationPage() {
                     <VerificationCard
                         stepNumber={1}
                         title="Face Recognition"
-                        description="Position face in frame for liveness detection."
+                        description="Position your face in the camera frame for biometric verification."
                         icon={<ScanFace size={32} />}
-                        isActive={stepsCompleted >= 0}
+                        isActive={true}
                         isCompleted={stepsCompleted >= 1}
                         isLoading={loadingStep === 1}
                         onVerify={() => handleVerify(1)}
                     >
-                        {/* Camera Simulation Area */}
-                        <div className="w-full h-32 bg-slate-950/50 rounded-xl mb-6 flex items-center justify-center relative border border-slate-800 overflow-hidden group">
-                            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1495745966610-2a672229dd3b?q=80&w=300&auto=format&fit=crop')] bg-cover bg-center opacity-20 grayscale group-hover:opacity-40 transition-opacity"></div>
-                            <ScanFace className="text-slate-600/50 text-4xl relative z-10" />
-                            {/* Scanning Overlay Animation */}
-                            {loadingStep === 1 && (
-                                <div className="absolute inset-0 z-20 bg-blue-500/10 animate-pulse border-y-2 border-blue-500/50"></div>
+                        <div className="w-full h-48 bg-slate-950/50 rounded-xl mb-6 flex items-center justify-center relative border border-slate-800 overflow-hidden group">
+                            {cameraActive && stepsCompleted < 1 ? (
+                                <>
+                                    <Webcam
+                                        audio={false}
+                                        ref={webcamRef}
+                                        screenshotFormat="image/jpeg"
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                        onUserMediaError={(error) => {
+                                            console.error('Camera error:', error);
+                                            alert('Camera access denied. Please allow camera access and try again.');
+                                            setCameraActive(false);
+                                        }}
+                                    />
+                                    <div className="absolute inset-0 pointer-events-none border-2 border-blue-500/50 rounded-xl"></div>
+                                </>
+                            ) : (
+                                // Show Placeholder or Captured State
+                                <div className="absolute inset-0 bg-slate-900 flex items-center justify-center text-slate-600">
+                                    <div className="text-center">
+                                        <ScanFace size={48} className="mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm">
+                                            {stepsCompleted >= 1 ? "Face Verified ✓" : "Click Start to begin"}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Button to actually Snap & Verify when Camera is Active */}
+                            {cameraActive && stepsCompleted < 1 && (
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleFaceVerify();
+                                    }}
+                                    disabled={loadingStep === 1}
+                                    className="absolute bottom-4 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg z-20 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {loadingStep === 1 ? (
+                                        <>
+                                            <Loader2 size={16} className="inline animate-spin mr-2" />
+                                            Scanning...
+                                        </>
+                                    ) : (
+                                        "Capture & Verify"
+                                    )}
+                                </button>
                             )}
                         </div>
                     </VerificationCard>
@@ -117,9 +270,13 @@ export default function VerificationPage() {
                         title="Token Validation"
                         description="Verifying blockchain eligibility credentials."
                         icon={<KeyRound size={32} />}
+
+                        // Only active if Step 2 (Fingerprint/Mock) is done
                         isActive={stepsCompleted >= 2}
                         isCompleted={stepsCompleted >= 3}
                         isLoading={loadingStep === 3}
+
+                        // Use the generic handler
                         onVerify={() => handleVerify(3)}
                     >
                         <div className="w-full bg-slate-950/50 rounded-xl p-4 mb-6 border border-slate-800/60 font-mono text-xs text-slate-500">
@@ -127,7 +284,7 @@ export default function VerificationPage() {
                                 <div className={`w-2 h-2 rounded-full ${stepsCompleted >= 3 ? 'bg-emerald-500' : loadingStep === 3 ? 'bg-blue-500 animate-ping' : 'bg-slate-600'}`}></div>
                                 Status: {stepsCompleted >= 3 ? 'Verified' : loadingStep === 3 ? 'Validating...' : 'Waiting'}
                             </div>
-                            <p className="opacity-50 truncate">Hash: 0x7f12a890c...9d2e</p>
+                            <p className="opacity-50 truncate">Hash: {stepsCompleted >= 3 ? '0x8f2a...Verified' : 'Pending...'}</p>
                         </div>
                     </VerificationCard>
 
@@ -212,15 +369,22 @@ function VerificationCard({ stepNumber, title, description, icon, isActive, isCo
 
             {/* Action Button */}
             <button
-                onClick={onVerify}
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Button clicked for step:', stepNumber, 'isActive:', isActive, 'isCompleted:', isCompleted, 'isLoading:', isLoading);
+                    if (onVerify && isActive && !isCompleted && !isLoading) {
+                        onVerify();
+                    }
+                }}
                 disabled={!isActive || isCompleted || isLoading}
                 className={`
-                    w-full py-4 rounded-xl font-bold text-sm transition-all mt-auto flex items-center justify-center gap-2
+                    w-full py-4 rounded-xl font-bold text-sm transition-all mt-auto flex items-center justify-center gap-2 cursor-pointer
                     ${isCompleted
                         ? 'bg-emerald-600/20 text-emerald-400 cursor-default border border-emerald-500/20'
-                        : isActive
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/30 border border-blue-500/50'
-                            : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'}
+                        : isActive && !isLoading
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/30 border border-blue-500/50 hover:cursor-pointer'
+                            : 'bg-slate-700/50 text-slate-500 cursor-not-allowed opacity-50'}
                 `}
             >
                 {isLoading ? (
