@@ -359,7 +359,12 @@ const AddCandidateForm = () => {
                 credentials: 'include'
                 // REMOVED: headers: { 'Authorization': ... }
             });
-            if (res.ok) setElections(await res.json());
+            if (res.ok) {
+                const allElections = await res.json();
+                // Filter to show only LIVE elections
+                const liveElections = allElections.filter(election => election.status === 'LIVE');
+                setElections(liveElections);
+            }
         };
         fetchElections();
     }, []);
