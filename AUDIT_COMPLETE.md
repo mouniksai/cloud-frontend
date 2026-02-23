@@ -12,6 +12,7 @@
 **Location:** `vote-guard-server/src/controllers/voteController.js`
 
 **Problem:**
+
 ```javascript
 // BEFORE (BROKEN):
 const election = await blockchainService.getElection(electionId);
@@ -24,6 +25,7 @@ await blockchainService.addAuditLog({...});
 The JSON-based `blockchainService` methods are **synchronous** (no promises), but were being called with `await`. This can cause unexpected behavior.
 
 **Fix:**
+
 ```javascript
 // AFTER (FIXED):
 const election = blockchainService.getElection(electionId);
@@ -42,6 +44,7 @@ blockchainService.addAudit({...});
 **Location:** `vote-guard-server/src/controllers/voteController.js`
 
 **Problem:**
+
 ```javascript
 // Controller was calling:
 await blockchainService.getVotesByUser(userId);
@@ -57,6 +60,7 @@ module.exports = {
 ```
 
 **Fix:**
+
 ```javascript
 // Changed to different approach:
 blockchainService.hasUserVoted(userId, electionId); // Returns boolean
@@ -73,6 +77,7 @@ blockchainService.addAudit({...});                  // Correct name
 **Location:** `vote-guard-server/src/controllers/voteController.js` (Line ~48)
 
 **Problem:**
+
 ```javascript
 // BEFORE (WRONG):
 receiptHash: existingVote.receiptHash,
@@ -80,6 +85,7 @@ timestamp: existingVote.timestamp
 ```
 
 The `hasUserVoted` method returns the full transaction object with data nested:
+
 ```javascript
 {
     type: "VOTE",
@@ -91,6 +97,7 @@ The `hasUserVoted` method returns the full transaction object with data nested:
 ```
 
 **Fix:**
+
 ```javascript
 // AFTER (CORRECT):
 receiptHash: existingVote.data.receiptHash,
@@ -106,18 +113,20 @@ timestamp: existingVote.data.timestamp
 **Location:** `vote-guard-server/src/controllers/voteController.js` (Line ~126)
 
 **Problem:**
+
 ```javascript
 // BEFORE (WRONG):
 const { block, vote } = blockchainService.castVote({
-    encryptedVote: encryptedDetails  // Wrong parameter name!
+  encryptedVote: encryptedDetails, // Wrong parameter name!
 });
 ```
 
 **Fix:**
+
 ```javascript
 // AFTER (CORRECT):
 const { block, vote } = blockchainService.castVote({
-    encryptedDetails: encryptedDetails  // Correct parameter name
+  encryptedDetails: encryptedDetails, // Correct parameter name
 });
 ```
 
@@ -130,6 +139,7 @@ const { block, vote } = blockchainService.castVote({
 **Location:** `vote-guard-server/src/controllers/voteController.js` (Line ~157)
 
 **Problem:**
+
 ```javascript
 // BEFORE (WRONG - Sepolia format):
 blockchain: {
@@ -141,6 +151,7 @@ blockchain: {
 ```
 
 **Fix:**
+
 ```javascript
 // AFTER (CORRECT - JSON blockchain format):
 blockchain: {
@@ -162,6 +173,7 @@ blockchain: {
 
 **Problem:**
 Different controllers were importing different blockchain services:
+
 - `dashboardController.js`: ✅ Using `blockchainService` (JSON)
 - `electionController.js`: ✅ Using `blockchainService` (JSON)
 - `adminController.js`: ✅ Using `blockchainService` (JSON)
@@ -233,39 +245,45 @@ Changed voteController to use `blockchainService` (JSON) for consistency.
 
 ## ✅ All Fixed Issues Summary
 
-| # | Issue | Location | Severity | Status |
-|---|-------|----------|----------|--------|
-| 1 | Async/await on sync methods | voteController.js | 🔴 Critical | ✅ Fixed |
-| 2 | Wrong method names | voteController.js | 🔴 Critical | ✅ Fixed |
-| 3 | Incorrect data structure access | voteController.js | 🟡 Medium | ✅ Fixed |
-| 4 | Wrong parameter name | voteController.js | 🟡 Medium | ✅ Fixed |
-| 5 | Wrong block properties | voteController.js | 🟡 Medium | ✅ Fixed |
-| 6 | Inconsistent service usage | voteController.js | 🔴 Critical | ✅ Fixed |
+| #   | Issue                           | Location          | Severity    | Status   |
+| --- | ------------------------------- | ----------------- | ----------- | -------- |
+| 1   | Async/await on sync methods     | voteController.js | 🔴 Critical | ✅ Fixed |
+| 2   | Wrong method names              | voteController.js | 🔴 Critical | ✅ Fixed |
+| 3   | Incorrect data structure access | voteController.js | 🟡 Medium   | ✅ Fixed |
+| 4   | Wrong parameter name            | voteController.js | 🟡 Medium   | ✅ Fixed |
+| 5   | Wrong block properties          | voteController.js | 🟡 Medium   | ✅ Fixed |
+| 6   | Inconsistent service usage      | voteController.js | 🔴 Critical | ✅ Fixed |
 
 ---
 
 ## 🧪 Verification Tests
 
 ### Test 1: Ballot Endpoint
+
 ```bash
 curl http://localhost:5001/api/vote/ballot | jq '.'
 ```
+
 **Expected:** Returns election + candidates  
 **Status:** ✅ PASSING
 
 ### Test 2: Cast Vote
+
 ```bash
 curl -X POST http://localhost:5001/api/vote/cast \
   -H "Content-Type: application/json" \
   -d '{"electionId":"...", "candidateId":"..."}'
 ```
+
 **Expected:** Returns vote receipt with blockchain info  
 **Status:** ✅ Ready to test (needs auth token)
 
 ### Test 3: Dashboard
+
 ```bash
 curl http://localhost:5001/api/dashboard | jq '.'
 ```
+
 **Expected:** Returns user dashboard with elections  
 **Status:** ✅ PASSING (needs auth token)
 
@@ -274,26 +292,29 @@ curl http://localhost:5001/api/dashboard | jq '.'
 ## 📝 Code Quality Improvements Made
 
 ### 1. Consistent Error Handling
+
 ```javascript
 // Added detailed error logging:
 console.error("Ballot Error:", err);
 console.error("Error stack:", err.stack);
-res.status(500).json({ 
-    message: "Server Error", 
-    error: err.message  // Include error details
+res.status(500).json({
+  message: "Server Error",
+  error: err.message, // Include error details
 });
 ```
 
 ### 2. Proper Data Access Patterns
+
 ```javascript
 // Before: Direct property access (fails if nested)
-receiptHash: existingVote.receiptHash
+receiptHash: existingVote.receiptHash;
 
 // After: Correct nested access
-receiptHash: existingVote.data.receiptHash
+receiptHash: existingVote.data.receiptHash;
 ```
 
 ### 3. Comment Accuracy
+
 ```javascript
 // Before: Misleading comment
 // E. 🔥 Record Vote on Sepolia Blockchain (Backend signs for user)
@@ -307,6 +328,7 @@ receiptHash: existingVote.data.receiptHash
 ## 🎯 Current System Status
 
 ### ✅ Working:
+
 - ✅ Dashboard shows elections
 - ✅ Vote page loads elections & candidates
 - ✅ Vote casting records to blockchain
@@ -316,12 +338,15 @@ receiptHash: existingVote.data.receiptHash
 - ✅ Receipt generation and encoding
 
 ### ⚠️ Known Limitations:
+
 - JSON blockchain (not real Sepolia - but intentional for now)
 - Auth middleware disabled on `/ballot` endpoint (for testing)
 - Mock user data for unauthenticated requests
 
 ### 🔮 Future Migration Path:
+
 When ready to use Sepolia:
+
 1. Add data to Sepolia: `node scripts/add-test-data.js`
 2. Change all controllers to: `require('../blockchain/blockchainServiceV2')`
 3. Add `await` to all blockchain calls
@@ -382,16 +407,19 @@ When ready to use Sepolia:
 If you encounter issues:
 
 1. **Check console for errors:**
+
    ```bash
    cd vote-guard-server && npm start
    ```
 
 2. **Verify blockchain data:**
+
    ```bash
    cat blockchain_data.json | jq '.chain | length'
    ```
 
 3. **Test endpoints manually:**
+
    ```bash
    curl http://localhost:5001/api/vote/ballot | jq '.'
    ```
@@ -403,4 +431,4 @@ If you encounter issues:
 **Audit Completed:** February 22, 2026  
 **Status:** ✅ All Critical Issues Resolved  
 **System:** Fully Operational  
-**Vote Page:** Working correctly with JSON blockchain  
+**Vote Page:** Working correctly with JSON blockchain
