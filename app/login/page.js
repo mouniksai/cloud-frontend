@@ -631,7 +631,7 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
 
                         {/* Resend */}
                         <p className="text-xs text-center text-slate-400">
-                            Didn't receive the code?{" "}
+                            Didn&apos;t receive the code?{" "}
                             <span
                                 onClick={handleResendOtp}
                                 className={`font-semibold cursor-pointer ${resendTimer > 0

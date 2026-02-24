@@ -258,9 +258,9 @@ export default function VerifySignaturePage() {
                   </>
                 ) : result.details?.existsInDatabase ? (
                   <>
-                    <li><strong>Receipt Found:</strong> Vote exists in database but provided details don't match</li>
+                    <li><strong>Receipt Found:</strong> Vote exists in database but provided details don&apos;t match</li>
                     <li><strong>Data Mismatch:</strong> The userId, electionId, or candidateId you entered is incorrect</li>
-                    <li><strong>Check Input:</strong> Verify you're using the correct IDs from your vote receipt</li>
+                    <li><strong>Check Input:</strong> Verify you&apos;re using the correct IDs from your vote receipt</li>
                   </>
                 ) : (
                   <>
