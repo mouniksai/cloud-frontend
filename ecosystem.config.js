@@ -10,7 +10,8 @@ module.exports = {
         max_memory_restart: '1G',
         env: {
             NODE_ENV: 'production',
-            PORT: process.env.PORT || 8080
+            PORT: process.env.PORT || 8080,
+            TZ: 'UTC'
         }
     }]
 };

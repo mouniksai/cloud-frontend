@@ -275,7 +275,8 @@ const CreateElectionForm = () => {
     const getMinDateTime = () => {
         const now = new Date();
         now.setMinutes(now.getMinutes() + 5); // Default to 5 minutes from now
-        return now.toISOString().slice(0, 16);
+        const pad = (n) => n.toString().padStart(2, '0');
+        return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
     };
 
     const [formData, setFormData] = useState({
@@ -295,7 +296,11 @@ const CreateElectionForm = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    startTime: new Date(formData.startTime).toISOString(),
+                    endTime: new Date(formData.endTime).toISOString(),
+                })
             });
 
             const data = await res.json();

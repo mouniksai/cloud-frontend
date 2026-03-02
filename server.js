@@ -1,3 +1,6 @@
+// Force UTC timezone regardless of deployment region (fixes Azure Southeast Asia UTC+8 offset)
+process.env.TZ = 'UTC';
+
 // Custom server for Azure App Service deployment
 const { createServer } = require('http');
 const { parse } = require('url');
