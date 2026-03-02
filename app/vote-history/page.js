@@ -44,7 +44,7 @@ export default function VoteHistoryPage() {
             setLoading(true);
             setError('');
 
-            const token = getCookie('voteGuardToken');
+            const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
             if (!token) {
                 router.push('/login');
                 return;

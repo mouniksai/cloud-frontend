@@ -33,7 +33,7 @@ export default function ResultsPage() {
 
     useEffect(() => {
         // Check authentication
-        const token = getCookie('voteGuardToken');
+        const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
         if (!token) {
             router.push('/login');
             return;
@@ -46,7 +46,7 @@ export default function ResultsPage() {
             setLoading(true);
             setError(null);
 
-            const token = getCookie('voteGuardToken');
+            const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
             const response = await fetch(`${API_BASE_URL}/api/elections/results`, {
                 method: 'GET',
                 headers: {

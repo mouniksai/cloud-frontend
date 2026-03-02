@@ -216,10 +216,12 @@ export default function VoteGuardBallot() {
                     candidateId: selectedCandidate
                 };
 
+                const token = localStorage.getItem('voteGuardToken');
                 const response = await fetch(`${API_BASE_URL}/api/vote/cast`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : '',
                     },
                     credentials: 'include', // This will include cookies
                     body: JSON.stringify(voteData)

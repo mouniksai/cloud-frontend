@@ -42,8 +42,8 @@ export default function AdminDashboard() {
             try {
                 setIsLoading(true);
 
-                // Get token from cookie
-                const token = getCookie('voteGuardToken');
+                // Get token from cookie or localStorage
+                const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
                 if (!token) {
                     console.log('No authentication token found');
                     setAuthError('Authentication required');
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
 
         const fetchStats = async () => {
             try {
-                const token = getCookie('voteGuardToken');
+                const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
                 const res = await fetch(`${API_BASE_URL}/api/admin/stats`, {
                     credentials: 'include',
                     headers: {
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
 
         const authCheckInterval = setInterval(async () => {
             try {
-                const token = getCookie('voteGuardToken');
+                const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
                 if (!token) {
                     console.log('Token lost during session');
                     setIsAuthenticated(false);
@@ -286,7 +286,7 @@ const CreateElectionForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const token = getCookie('voteGuardToken');
+        const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/admin/create-election`, {
@@ -405,7 +405,7 @@ const AddCandidateForm = () => {
     // Fetch available elections for dropdown
     useEffect(() => {
         const fetchElections = async () => {
-            const token = getCookie('voteGuardToken');
+            const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
             const res = await fetch(`${API_BASE_URL}/api/admin/elections`, {
                 credentials: 'include',
                 headers: {
@@ -428,7 +428,7 @@ const AddCandidateForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        const token = getCookie('voteGuardToken');
+        const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
 
         // Convert keyPoints string to array
         const payload = {

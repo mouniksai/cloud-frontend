@@ -194,8 +194,10 @@ const SignInFlow = ({ router }) => {
                 } else {
                     // Fallback (if you ever disable 2FA)
                     setCookie('voteGuardToken', data.token);
+                    localStorage.setItem('voteGuardToken', data.token);
                     if (data.user) {
                         setCookie('voteGuardUser', JSON.stringify(data.user));
+                        localStorage.setItem('voteGuardUser', JSON.stringify(data.user));
                     }
                     router.push('/dashboard');
                 }
@@ -499,10 +501,12 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
             const data = await res.json();
 
             if (res.ok) {
-                // FINAL SUCCESS - Use cookies instead of localStorage
+                // FINAL SUCCESS - Store in both cookies and localStorage
                 setCookie('voteGuardToken', data.token);
+                localStorage.setItem('voteGuardToken', data.token);
                 if (data.user) {
                     setCookie('voteGuardUser', JSON.stringify(data.user));
+                    localStorage.setItem('voteGuardUser', JSON.stringify(data.user));
                 }
                 console.log('Authentication successful, redirecting to dashboard...');
                 router.push('/dashboard');

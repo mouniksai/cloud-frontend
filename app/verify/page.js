@@ -52,6 +52,7 @@ export default function VerificationPage() {
             }
 
             // 2. Send to Backend
+            const token = localStorage.getItem('voteGuardToken');
             const res = await fetch(`${API_BASE_URL}/api/verification/face`, {
                 method: 'POST',
 
@@ -60,6 +61,7 @@ export default function VerificationPage() {
 
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : '',
                 },
                 body: JSON.stringify({
                     liveImageBase64: imageSrc
@@ -120,11 +122,13 @@ export default function VerificationPage() {
 
         try {
             // We use credentials: 'include' so the browser sends the cookie automatically
+            const token = localStorage.getItem('voteGuardToken');
             const res = await fetch(`${API_BASE_URL}/api/verification/token`, {
                 method: 'POST',
                 credentials: 'include', // <--- IMPORTANT: Sends the HTTP-Only Cookie
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : '',
                 }
             });
 

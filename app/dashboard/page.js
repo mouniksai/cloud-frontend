@@ -61,7 +61,7 @@ export default function VoteGuardDashboard() {
 
     useEffect(() => {
         // Check if user is authenticated before fetching dashboard data
-        const token = getCookie('voteGuardToken');
+        const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
         if (!token) {
             router.push('/login');
             return;
@@ -74,8 +74,8 @@ export default function VoteGuardDashboard() {
             setLoading(true);
             setError(null);
 
-            // Get token from cookie
-            const token = getCookie('voteGuardToken');
+            // Get token from cookie or localStorage
+            const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
             const response = await fetch(`${API_BASE_URL}/api/dashboard`, {
                 method: 'GET',
                 headers: {
@@ -88,6 +88,8 @@ export default function VoteGuardDashboard() {
             if (response.status === 401) {
                 deleteCookie('voteGuardToken');
                 deleteCookie('voteGuardUser');
+                localStorage.removeItem('voteGuardToken');
+                localStorage.removeItem('voteGuardUser');
                 router.push('/login');
                 return;
             }
@@ -109,10 +111,11 @@ export default function VoteGuardDashboard() {
     const handleSignOut = async () => {
         try {
             // Call logout endpoint to clear backend cookies
+            const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
             await fetch(`${API_BASE_URL}/api/auth/logout`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${getCookie('voteGuardToken')}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 credentials: 'include'
@@ -121,9 +124,11 @@ export default function VoteGuardDashboard() {
             console.log('Logout API call failed, clearing cookies locally');
         }
 
-        // Clear cookies on frontend
+        // Clear cookies and localStorage on frontend
         deleteCookie('voteGuardToken');
         deleteCookie('voteGuardUser');
+        localStorage.removeItem('voteGuardToken');
+        localStorage.removeItem('voteGuardUser');
         router.push('/login');
     };
 
