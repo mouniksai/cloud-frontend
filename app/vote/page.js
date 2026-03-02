@@ -26,6 +26,15 @@ import {
     ChevronUp
 } from 'lucide-react';
 
+// Cookie utility function
+const getCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+};
+
 // Mock data (fallback if backend fails)
 const USER_SESSION = {
     name: "Aarav Sharma",
@@ -216,7 +225,7 @@ export default function VoteGuardBallot() {
                     candidateId: selectedCandidate
                 };
 
-                const token = localStorage.getItem('voteGuardToken');
+                const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
                 const response = await fetch(`${API_BASE_URL}/api/vote/cast`, {
                     method: 'POST',
                     headers: {

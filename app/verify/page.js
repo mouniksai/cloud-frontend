@@ -15,6 +15,15 @@ import {
     ArrowRight
 } from 'lucide-react';
 
+// Cookie utility function
+const getCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+};
+
 export default function VerificationPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -52,7 +61,7 @@ export default function VerificationPage() {
             }
 
             // 2. Send to Backend
-            const token = localStorage.getItem('voteGuardToken');
+            const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
             const res = await fetch(`${API_BASE_URL}/api/verification/face`, {
                 method: 'POST',
 
@@ -122,7 +131,7 @@ export default function VerificationPage() {
 
         try {
             // We use credentials: 'include' so the browser sends the cookie automatically
-            const token = localStorage.getItem('voteGuardToken');
+            const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
             const res = await fetch(`${API_BASE_URL}/api/verification/token`, {
                 method: 'POST',
                 credentials: 'include', // <--- IMPORTANT: Sends the HTTP-Only Cookie
