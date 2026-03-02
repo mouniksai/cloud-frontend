@@ -19,6 +19,15 @@ import { useRouter } from 'next/navigation';
 // API Base URL from environment variable
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://voteguard-backend-2026.azurewebsites.net';
 
+// Cookie utility to extract token
+const getCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+};
+
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [stats, setStats] = useState(null);
@@ -33,19 +42,20 @@ export default function AdminDashboard() {
             try {
                 setIsLoading(true);
 
-                // First check if cookie exists
-                const hasCookie = document.cookie.includes('voteGuardToken');
-                if (!hasCookie) {
-                    console.log('No authentication cookie found');
+                // Get token from cookie
+                const token = getCookie('voteGuardToken');
+                if (!token) {
+                    console.log('No authentication token found');
                     setAuthError('Authentication required');
                     router.push('/login');
                     return;
                 }
 
-                // Validate token with server
+                // Validate token with server - send both cookie and Authorization header
                 const authRes = await fetch(`${API_BASE_URL}/api/admin/validate-token`, {
                     credentials: 'include',
                     headers: {
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -78,9 +88,11 @@ export default function AdminDashboard() {
 
         const fetchStats = async () => {
             try {
+                const token = getCookie('voteGuardToken');
                 const res = await fetch(`${API_BASE_URL}/api/admin/stats`, {
                     credentials: 'include',
                     headers: {
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -109,9 +121,22 @@ export default function AdminDashboard() {
 
         const authCheckInterval = setInterval(async () => {
             try {
+                const token = getCookie('voteGuardToken');
+                if (!token) {
+                    console.log('Token lost during session');
+                    setIsAuthenticated(false);
+                    setAuthError('Session expired');
+                    clearInterval(authCheckInterval);
+                    router.push('/login');
+                    return;
+                }
+
                 const authRes = await fetch(`${API_BASE_URL}/api/admin/validate-token`, {
                     credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
                 });
 
                 if (!authRes.ok) {
@@ -260,18 +285,15 @@ const CreateElectionForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        // REMOVED: const token = localStorage.getItem('voteGuardToken');
+        const token = getCookie('voteGuardToken');
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/admin/create-election`, {
                 method: 'POST',
-
-                // NEW: This attaches the cookie automatically
                 credentials: 'include',
-
                 headers: {
-                    'Content-Type': 'application/json',
-                    // REMOVED: 'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(formData)
             });
@@ -378,12 +400,13 @@ const AddCandidateForm = () => {
     // Fetch available elections for dropdown
     useEffect(() => {
         const fetchElections = async () => {
-            // REMOVED: const token = localStorage.getItem('voteGuardToken');
-
+            const token = getCookie('voteGuardToken');
             const res = await fetch(`${API_BASE_URL}/api/admin/elections`, {
-                // NEW: Automatically attach the admin cookie
-                credentials: 'include'
-                // REMOVED: headers: { 'Authorization': ... }
+                credentials: 'include',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
             if (res.ok) {
                 const allElections = await res.json();
@@ -400,7 +423,7 @@ const AddCandidateForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        // REMOVED: const token = localStorage.getItem('voteGuardToken');
+        const token = getCookie('voteGuardToken');
 
         // Convert keyPoints string to array
         const payload = {
@@ -411,13 +434,10 @@ const AddCandidateForm = () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/admin/add-candidate`, {
                 method: 'POST',
-
-                // NEW: Automatically attach the admin cookie
                 credentials: 'include',
-
                 headers: {
-                    'Content-Type': 'application/json',
-                    // REMOVED: 'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
             });
