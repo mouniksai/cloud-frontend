@@ -40,7 +40,7 @@ describe('KeyExchangeClient', () => {
             jest.resetModules();
             const { KeyExchangeClient: FreshClient } = require('../../../app/utils/keyExchange');
             const freshClient = new FreshClient();
-            expect(freshClient.apiBaseUrl).toBe('http://localhost:5001');
+            expect(freshClient.apiBaseUrl).toBe('https://voteguard-backend-2026.azurewebsites.net');
         });
     });
 
