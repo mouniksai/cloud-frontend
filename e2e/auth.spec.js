@@ -2,14 +2,16 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Authentication and Navigation Flow', () => {
 
-    test('Homepage loads correctly', async ({ page }) => {
+    test('Homepage redirects to login', async ({ page }) => {
         // Navigate to the app root
         await page.goto('/');
 
-        // Check for standard elements on the homepage
+        // It should automatically redirect to /login
+        await expect(page).toHaveURL(/\/login/);
+
+        // Check for standard elements on the login page
         await expect(page).toHaveTitle(/VoteGuard/i);
         await expect(page.getByRole('heading', { name: /VoteGuard/i })).toBeVisible();
-        await expect(page.getByRole('button', { name: /login/i }).first()).toBeVisible();
     });
 
     test('Login screen renders expected inputs', async ({ page }) => {
