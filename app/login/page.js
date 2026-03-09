@@ -424,7 +424,7 @@ const RegisterWizard = ({ onRegistrationSuccess }) => {
 const RESEND_TIME = 30;
 
 const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
-    const [step, setStep] = useState("mobile");
+    const [step, setStep] = useState("email");
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
@@ -452,11 +452,7 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
         setLoading(true);
 
         setTimeout(() => {
-            console.log(
-                step === "mobile"
-                    ? "OTP sent to mobile"
-                    : "OTP sent to email"
-            );
+            console.log("OTP sent to email");
 
             setLoading(false);
             setSent(true);
@@ -472,18 +468,6 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
 
     const handleVerify = async () => {
         setLoading(true);
-
-        // NOTE: For now, we skip mobile step logic and assume we are on email step
-        // Or you can use the same OTP logic for both steps if simulating
-        if (step === "mobile") {
-            // Just simulate mobile step for UI demo (since no SMS API)
-            setTimeout(() => {
-                setLoading(false);
-                setStep("email");
-                setOtp("");
-            }, 1000);
-            return;
-        }
 
         try {
             // console.log('Verifying OTP for user ID:', userDetails);
@@ -544,40 +528,12 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
                 </h2>
 
                 <p className="text-slate-500">
-                    {step === "mobile"
-                        ? "Verify your mobile number first."
-                        : "Verify your email address to continue."}
+                    Verify your email address to continue.
                 </p>
             </div>
 
             {/* Progress Cards */}
             <div className="grid grid-cols-1 gap-3">
-                {/* Mobile */}
-                <div
-                    className={`p-4 rounded-xl border-2 flex items-center gap-4 ${step === "mobile"
-                        ? "border-blue-600 bg-blue-50/50"
-                        : "border-green-600 bg-green-50/50"
-                        }`}
-                >
-                    <div
-                        className={`p-3 rounded-full ${step === "mobile"
-                            ? "bg-blue-600 text-white"
-                            : "bg-green-600 text-white"
-                            }`}
-                    >
-                        <Smartphone size={20} />
-                    </div>
-                    <div>
-                        <p className="font-bold">Mobile Verification</p>
-                        <p className="text-xs text-slate-500">
-                            {maskMobile(userDetails?.mobile)}
-                        </p>
-                    </div>
-                    {step !== "mobile" && (
-                        <CheckCircle2 className="text-green-600 ml-auto" />
-                    )}
-                </div>
-
                 {/* Email */}
                 <div
                     className={`p-4 rounded-xl border-2 flex items-center gap-4 ${step === "email"
@@ -611,8 +567,7 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
                         className="space-y-4"
                     >
                         <InputField
-                            label={`Enter OTP sent to your ${step === "mobile" ? "mobile" : "email"
-                                }`}
+                            label="Enter OTP sent to your email"
                             icon={Lock}
                             placeholder="6-digit OTP"
                             value={otp}
@@ -626,8 +581,6 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
                         >
                             {loading ? (
                                 <Loader2 className="animate-spin" />
-                            ) : step === "mobile" ? (
-                                "Verify Mobile OTP"
                             ) : (
                                 "Verify Email OTP & Login"
                             )}
@@ -657,8 +610,6 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
                     >
                         {loading ? (
                             <Loader2 className="animate-spin" />
-                        ) : step === "mobile" ? (
-                            "Send Mobile OTP"
                         ) : (
                             "Send Email OTP"
                         )}

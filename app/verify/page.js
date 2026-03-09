@@ -128,9 +128,13 @@ export default function VerificationPage() {
                 setLoadingStep(null);
                 return;
             }
-            const challengeRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/fingerprint/challenge`, {
+            const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
+            const challengeRes = await fetch(`${API_BASE_URL}/api/fingerprint/challenge`, {
                 method: 'GET',
                 credentials: 'include',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                }
             });
             if (!challengeRes.ok) {
                 const err = await challengeRes.json().catch(() => ({}));
@@ -142,7 +146,7 @@ export default function VerificationPage() {
             if (!isRegistered) {
                 // --- REGISTRATION ---
                 const userIdBytes = new TextEncoder().encode(userId);
-                
+
                 credential = await navigator.credentials.create({
                     publicKey: {
                         challenge: challengeBytes,
@@ -185,10 +189,13 @@ export default function VerificationPage() {
             if (!credential || !credential.id) {
                 throw new Error('No credential returned from authenticator.');
             }
-            const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/fingerprint/verify`, {
+            const verifyRes = await fetch(`${API_BASE_URL}/api/fingerprint/verify`, {
                 method: 'POST',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 body: JSON.stringify({ credentialId: credential.id })
             });
             const result = await verifyRes.json();
@@ -391,15 +398,14 @@ export default function VerificationPage() {
                         <div className="mb-6 mt-4 flex flex-col items-center gap-3">
                             <Fingerprint
                                 size={64}
-                                className={`transition-all duration-500 ${
-                                    stepsCompleted >= 2
+                                className={`transition-all duration-500 ${stepsCompleted >= 2
                                         ? 'text-emerald-400'
                                         : loadingStep === 2
                                             ? 'text-blue-400 animate-pulse scale-110'
                                             : fingerprintSupported
                                                 ? 'text-slate-600'
                                                 : 'text-red-800'
-                                }`}
+                                    }`}
                             />
                             {loadingStep === 2 && (
                                 <p className="text-xs text-blue-400 animate-pulse text-center">
