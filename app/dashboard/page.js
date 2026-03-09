@@ -112,24 +112,26 @@ export default function VoteGuardDashboard() {
         try {
             // Call logout endpoint to clear backend cookies
             const token = getCookie('voteGuardToken') || localStorage.getItem('voteGuardToken');
-            await fetch(`${API_BASE_URL}/api/auth/logout`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include'
-            });
+            if (token) {
+                await fetch(`${API_BASE_URL}/api/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+            }
         } catch (err) {
             console.log('Logout API call failed, clearing cookies locally');
+        } finally {
+            // Clear cookies and localStorage on frontend regardless of API success/failure
+            deleteCookie('voteGuardToken');
+            deleteCookie('voteGuardUser');
+            localStorage.removeItem('voteGuardToken');
+            localStorage.removeItem('voteGuardUser');
+            router.push('/login');
         }
-
-        // Clear cookies and localStorage on frontend
-        deleteCookie('voteGuardToken');
-        deleteCookie('voteGuardUser');
-        localStorage.removeItem('voteGuardToken');
-        localStorage.removeItem('voteGuardUser');
-        router.push('/login');
     };
 
     const handleVoteClick = () => {

@@ -234,7 +234,7 @@ const SignInFlow = ({ router }) => {
                         icon={User}
                         placeholder="Enter your username"
                         value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+                        onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ''))}
                     />
                     <InputField
                         label="Password"
@@ -395,7 +395,7 @@ const RegisterWizard = ({ onRegistrationSuccess }) => {
                             icon={User}
                             placeholder="e.g. voterguy123"
                             value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ''))}
                         />
                         <InputField
                             label="Set Password"
@@ -571,7 +571,7 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
                             icon={Lock}
                             placeholder="6-digit OTP"
                             value={otp}
-                            onChange={(e) => setOtp(e.target.value)}
+                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                         />
 
                         <button
