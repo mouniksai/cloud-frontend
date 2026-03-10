@@ -252,7 +252,16 @@ const SignInFlow = ({ router }) => {
                             <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                             <span className="text-sm text-slate-500">Remember me</span>
                         </label>
-                        <a href="#" className="text-sm font-semibold text-blue-600 hover:text-blue-700">Forgot password?</a>
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setStep('forgot-password');
+                            }}
+                            className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                        >
+                            Forgot password?
+                        </button>
                     </div>
 
                     <button
@@ -264,6 +273,10 @@ const SignInFlow = ({ router }) => {
                 </form>
             </motion.div>
         );
+    }
+
+    if (step === 'forgot-password') {
+        return <ForgotPasswordFlow onBack={() => setStep('credentials')} />;
     }
 
     return (
@@ -616,6 +629,300 @@ const TwoFactorAuth = ({ user, userDetails, userId, onBack, router }) => {
                     </button>
                 )}
             </AnimatePresence>
+        </motion.div>
+    );
+};
+
+// --- SUB-COMPONENT: FORGOT PASSWORD FLOW ---
+const ForgotPasswordFlow = ({ onBack }) => {
+    const [step, setStep] = useState(1); // 1: Enter Username, 2: Verify OTP, 3: Reset Password
+    const [loading, setLoading] = useState(false);
+    const [username, setUsername] = useState('');
+    const [otp, setOtp] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [maskedEmail, setMaskedEmail] = useState('');
+    const [userId, setUserId] = useState('');
+    const [resendTimer, setResendTimer] = useState(0);
+
+    // Resend timer countdown
+    useEffect(() => {
+        if (resendTimer === 0) return;
+        const interval = setInterval(() => {
+            setResendTimer((prev) => prev - 1);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [resendTimer]);
+
+    // Step 1: Request OTP
+    const handleRequestOtp = async () => {
+        if (!username.trim()) {
+            setError('Please enter your username');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username.trim() })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setMaskedEmail(data.maskedEmail);
+                setUserId(data.userId);
+                setStep(2);
+                setResendTimer(30);
+            } else {
+                setError(data.message || 'User not found');
+            }
+        } catch (err) {
+            console.error('Request OTP error:', err);
+            setError('Server error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Step 2: Verify OTP
+    const handleVerifyOtp = async () => {
+        if (otp.length < 6) {
+            setError('Please enter the 6-digit OTP');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/auth/verify-reset-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, otp })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setStep(3);
+            } else {
+                setError(data.message || 'Invalid OTP');
+            }
+        } catch (err) {
+            console.error('Verify OTP error:', err);
+            setError('Server error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Step 3: Reset Password
+    const handleResetPassword = async () => {
+        if (!newPassword || !confirmPassword) {
+            setError('Please fill all fields');
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setError('Password must be at least 8 characters');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, otp, newPassword })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setSuccess(data.message);
+                setTimeout(() => {
+                    onBack();
+                }, 2000);
+            } else {
+                setError(data.message || 'Failed to reset password');
+            }
+        } catch (err) {
+            console.error('Reset password error:', err);
+            setError('Server error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Resend OTP
+    const handleResendOtp = () => {
+        if (resendTimer > 0) return;
+        setOtp('');
+        setError('');
+        handleRequestOtp();
+    };
+
+    return (
+        <motion.div
+            key="forgot-password"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-6"
+        >
+            {/* Header */}
+            <div>
+                <button
+                    onClick={onBack}
+                    className="text-sm text-slate-400 hover:text-slate-600 mb-4 flex items-center gap-1"
+                >
+                    ← Back to Login
+                </button>
+
+                <h2 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <Lock className="text-blue-600" />
+                    Reset Password
+                </h2>
+
+                <p className="text-slate-500">
+                    {step === 1 && "Enter your username to receive a verification code"}
+                    {step === 2 && "Enter the OTP sent to your email"}
+                    {step === 3 && "Create a new password"}
+                </p>
+            </div>
+
+            {/* Progress Indicator */}
+            <div className="flex items-center gap-2">
+                {[1, 2, 3].map((s) => (
+                    <div
+                        key={s}
+                        className={`flex-1 h-1.5 rounded-full ${s <= step ? 'bg-blue-600' : 'bg-slate-200'
+                            }`}
+                    />
+                ))}
+            </div>
+
+            {/* Step 1: Enter Username */}
+            {step === 1 && (
+                <div className="space-y-4">
+                    <InputField
+                        label="Username"
+                        icon={User}
+                        placeholder="Enter your username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ''))}
+                    />
+
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                    <button
+                        onClick={handleRequestOtp}
+                        disabled={loading}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"
+                    >
+                        {loading ? <Loader2 className="animate-spin" /> : "Send OTP"}
+                    </button>
+                </div>
+            )}
+
+            {/* Step 2: Verify OTP */}
+            {step === 2 && (
+                <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <p className="text-sm text-blue-800">
+                            We sent a 6-digit code to <strong>{maskedEmail}</strong>
+                        </p>
+                    </div>
+
+                    <InputField
+                        label="Enter OTP"
+                        icon={Lock}
+                        placeholder="6-digit code"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    />
+
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                    <button
+                        onClick={handleVerifyOtp}
+                        disabled={loading || otp.length < 6}
+                        className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"
+                    >
+                        {loading ? <Loader2 className="animate-spin" /> : "Verify OTP"}
+                    </button>
+
+                    <p className="text-xs text-center text-slate-400">
+                        Didn&apos;t receive the code?{" "}
+                        <span
+                            onClick={handleResendOtp}
+                            className={`font-semibold cursor-pointer ${resendTimer > 0
+                                    ? "text-slate-400 cursor-not-allowed"
+                                    : "text-blue-600"
+                                }`}
+                        >
+                            {resendTimer > 0
+                                ? `Resend in ${resendTimer}s`
+                                : "Resend OTP"}
+                        </span>
+                    </p>
+                </div>
+            )}
+
+            {/* Step 3: Reset Password */}
+            {step === 3 && (
+                <div className="space-y-4">
+                    <InputField
+                        label="New Password"
+                        icon={Lock}
+                        type="password"
+                        placeholder="Min. 8 characters"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                    />
+
+                    <InputField
+                        label="Confirm Password"
+                        icon={Lock}
+                        type="password"
+                        placeholder="Re-enter password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
+                    {success && (
+                        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                            <p className="text-green-800 text-sm flex items-center gap-2">
+                                <CheckCircle size={16} />
+                                {success}
+                            </p>
+                        </div>
+                    )}
+
+                    <button
+                        onClick={handleResetPassword}
+                        disabled={loading || success}
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"
+                    >
+                        {loading ? <Loader2 className="animate-spin" /> : "Reset Password"}
+                    </button>
+                </div>
+            )}
         </motion.div>
     );
 };
